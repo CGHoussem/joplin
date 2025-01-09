@@ -143,8 +143,15 @@ jobs:
         run: |
           yarn install && cd packages/app-desktop && yarn dist --publish=never
 
+      - name: Upload artifact
+        if: runner.os == 'windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-artifact
+          path: dist/
+
   ServerDockerImage:
-    if: github.repository == 'laurent22/joplin'
+    if: github.repository == 'CGHoussem/joplin'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
