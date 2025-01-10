@@ -513,9 +513,17 @@ function shimInit(options: ShimInitOptions = null) {
 		const resolvedProxyUrl = resolveProxyUrl(proxySettings.proxyUrl);
 		let proxyAuth = null;
 		if (proxySettings.proxyUsername && proxySettings.proxyPassword) {
-			proxyAuth = `${proxySettings.proxyUsername}:${encodeURIComponent(proxySettings.proxyPassword)}`;
+			proxyAuth = `${encodeURIComponent(proxySettings.proxyUsername)}:${encodeURIComponent(proxySettings.proxyPassword)}`;
 		}
-		options.agent = (resolvedProxyUrl && proxySettings.proxyEnabled) ? shim.proxyAgent(url, resolvedProxyUrl, proxyAuth) : null;
+		let fullProxyUrl = resolvedProxyUrl;
+		if (proxyAuth) {
+			// Insert the proxyAuth after the scheme (http:// or https://)
+			const url = new URL(resolvedProxyUrl); // Parse the URL
+			url.username = proxySettings.proxyUsername; // Automatically encodes the username
+			url.password = proxySettings.proxyPassword; // Automatically encodes the password
+			fullProxyUrl = url.toString(); // Convert back to a string
+		}
+		options.agent = (fullProxyUrl && proxySettings.proxyEnabled) ? shim.proxyAgent(url, fullProxyUrl) : null;
 		return shim.fetchWithRetry(() => {
 			return nodeFetch(url, options);
 		}, options);
@@ -572,9 +580,17 @@ function shimInit(options: ShimInitOptions = null) {
 		const resolvedProxyUrl = resolveProxyUrl(proxySettings.proxyUrl);
 		let proxyAuth = null;
 		if (proxySettings.proxyUsername && proxySettings.proxyPassword) {
-			proxyAuth = `${proxySettings.proxyUsername}:${encodeURIComponent(proxySettings.proxyPassword)}`;
+			proxyAuth = `${encodeURIComponent(proxySettings.proxyUsername)}:${encodeURIComponent(proxySettings.proxyPassword)}`;
 		}
-		requestOptions.agent = (resolvedProxyUrl && proxySettings.proxyEnabled) ? shim.proxyAgent(url.href, resolvedProxyUrl, proxyAuth) : null;
+		let fullProxyUrl = resolvedProxyUrl;
+		if (proxyAuth) {
+			// Insert the proxyAuth after the scheme (http:// or https://)
+			const url = new URL(resolvedProxyUrl); // Parse the URL
+			url.username = proxySettings.proxyUsername; // Automatically encodes the username
+			url.password = proxySettings.proxyPassword; // Automatically encodes the password
+			fullProxyUrl = url.toString(); // Convert back to a string
+		}
+		requestOptions.agent = (fullProxyUrl && proxySettings.proxyEnabled) ? shim.proxyAgent(url.href,fullProxyUrl) : null;
 
 		const doFetchOperation = async () => {
 			return new Promise((resolve, reject) => {
@@ -706,19 +722,12 @@ function shimInit(options: ShimInitOptions = null) {
 		return url.startsWith('https') ? shim.httpAgent_.https : shim.httpAgent_.http;
 	};
 
-	shim.proxyAgent = (serverUrl: string, proxyUrl: string, proxyAuth: string) => {
-		let headers = {};
-		if (proxyAuth) {
-			headers = {
-				'Proxy-Authorization': `Basic ${Buffer.from(proxyAuth).toString('base64')}`,
-			};
-		}
+	shim.proxyAgent = (serverUrl: string, proxyUrl: string) => {
 		const proxyAgentConfig = {
 			keepAlive: true,
 			maxSockets: proxySettings.maxConcurrentConnections,
 			keepAliveMsecs: 5000,
 			proxy: proxyUrl,
-			headers: headers,
 			timeout: proxySettings.proxyTimeout * 1000,
 		};
 
